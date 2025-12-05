@@ -6,6 +6,8 @@
   --background: #0b1224;
   --foreground: #f8fafc;
   --accent: #22d3ee;
+  --font-sans: "SF Pro Display", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Times New Roman", Georgia, serif;
 }
 
 body {

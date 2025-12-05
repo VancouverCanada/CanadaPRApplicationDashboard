@@ -249,7 +249,7 @@ export const fetchSheetData = async (
     }
 
     const record: ParsedRecord = {};
-    headers.forEach((key, idx) => {
+    headers.forEach((key: string, idx: number) => {
       record[key] = row[idx] ?? null;
     });
     record.__submissionDate = currentSubmissionDateForRecords;
