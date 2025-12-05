@@ -174,6 +174,7 @@ type NormalizedRecord = {
   pvo: string;
   svo: string;
   source?: string;
+  __submissionDate?: string | null;
   raw: SheetRecord;
 };
 
@@ -305,6 +306,8 @@ const normalizeRecords = (records: SheetRecord[]): NormalizedRecord[] => {
       pvo: pvoEntry?.toString().trim() ?? "",
       svo: svoEntry?.toString().trim() ?? "",
       source: (record as SheetRecord & { __source?: string }).__source,
+      __submissionDate: (record as SheetRecord & { __submissionDate?: string | null })
+        .__submissionDate,
       raw: record,
     };
   });
