@@ -5,8 +5,6 @@
 ### What this project is
 An open-source, bilingual (EN/中文) dashboard that aggregates multiple public Google Sheets to show live PR application progress (AOR / BIL / Medical / ADR / PAL / PVO / SVO / PPR / eCOPR). Data refreshes every 30 minutes with server-side caching, deduplication, and light cleanup to make crowd-sourced spreadsheets easier to read. The site is built with Next.js (App Router), Tailwind, Recharts, and Vercel Analytics.
 
-I’m Sebastian, a developer who enjoys shipping useful tools and obsessing over data details. If you find the project helpful, issues and PRs are warmly welcome.
-
 ### Core features
 - Live aggregation of multiple Google Sheets (see `src/lib/sources.ts` for current list).
 - Bilingual UI toggle (EN/中文) with localized copy and abbreviations.
@@ -80,8 +78,6 @@ Hi, I’m Sebastian (热爱 coding 的人). I enjoy building transparent, data-h
 
 ### 项目简介
 这是一个开源的双语（英文/中文）看板，聚合多份公开的 Google 表格，实时展示加拿大 PR 进度（AOR / BIL / 体检 / ADR / PAL / PVO / SVO / PPR / eCOPR）。服务端每 30 分钟刷新并缓存，自动合并、清洗与去重，帮助大家直观看到群体数据。技术栈：Next.js（App Router）、Tailwind、Recharts、Vercel Analytics。
-
-作者自述：我是 Sebastian，一名热爱编码与数据细节的开发者，欢迎通过 Issue/PR 交流与贡献。
 
 ### 核心特性
 - 多源合并：聚合多张公开 Google Sheet（列表见 `src/lib/sources.ts`）。
