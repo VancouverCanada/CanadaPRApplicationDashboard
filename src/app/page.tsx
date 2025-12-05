@@ -236,6 +236,56 @@ const FORMULAS = [
 ];
 
 const normalizeRecords = (records: SheetRecord[]): NormalizedRecord[] => {
+  const normalizeAdr = (value: string | undefined | null) => {
+    if (!value) return "";
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    if (trimmed.length < 3) return "";
+    const lower = trimmed.toLowerCase();
+    const placeholders = new Set([
+      "-",
+      "n/a",
+      "na",
+      "none",
+      "no",
+      "nil",
+      "0",
+      "false",
+      "无",
+      "没有",
+    ]);
+    if (placeholders.has(lower)) return "";
+
+    // If it's a valid date, keep it.
+    if (toValidDate(trimmed)) return trimmed;
+
+    // Keep short keywords that indicate ADR/Return.
+    const keywords = ["adr", "return", "补料", "补件"];
+    if (keywords.some((k) => lower.includes(k))) return trimmed;
+
+    // Ignore long or numeric-only fillers.
+    if (/^\d+$/.test(trimmed)) return "";
+    if (trimmed.length > 50) return "";
+
+    // Default: accept short free text (likely a status).
+    return trimmed;
+  };
+
+  const extractAdr = (record: SheetRecord) => {
+    const priorityKeys = ["adr_if_any_return_date", "adr"];
+    for (const key of priorityKeys) {
+      const normalized = normalizeAdr(record[key] as string | undefined);
+      if (normalized) return normalized;
+    }
+    for (const [key, value] of Object.entries(record)) {
+      if (typeof value !== "string") continue;
+      if (!/adr|return/i.test(key)) continue;
+      const normalized = normalizeAdr(value);
+      if (normalized) return normalized;
+    }
+    return "";
+  };
+
   const normalizeProvince = (value: string | undefined | null) => {
     if (!value) return "";
     const cleaned = value.trim().toUpperCase();
@@ -320,11 +370,7 @@ const normalizeRecords = (records: SheetRecord[]): NormalizedRecord[] => {
       (record.col_4 as string | undefined) ??
       "";
 
-    const adrEntry =
-      (record.adr_if_any_return_date as string | undefined) ??
-      (record.adr as string | undefined) ??
-      (record.col_7 as string | undefined) ??
-      "";
+    const adrEntry = extractAdr(record);
 
     const pvoEntry =
       normalizeOffice(record.pvo_inland as string | undefined) ??
