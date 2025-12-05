@@ -328,7 +328,7 @@ const aggregateTimeline = (records: NormalizedRecord[]) => {
   const counts: Record<string, number> = {};
   records.forEach((record) => {
     const dateString =
-      record.__submissionDate ?? record.firstDate ?? record.latestDate;
+      record.firstDate ?? record.__submissionDate ?? record.latestDate;
     const parsed = toValidDate(dateString);
     if (!parsed) return;
     const key = parsed.toISOString().slice(0, 10);
