@@ -174,16 +174,14 @@ export const fetchSheetData = async (
   let globalMaxAor: string | null = null;
 
   rawRows.forEach((row: (string | number | null)[]) => {
-    const isoAtIndex1 =
-      typeof row[1] === "string" ? toValidIso(row[1]) : null;
+    const isoAtIndex1 = typeof row[1] === "string" ? toValidIso(row[1]) : null;
+    const isoAtIndex0 = typeof row[0] === "string" ? toValidIso(row[0]) : null;
+    const headerDate = isoAtIndex1 ?? isoAtIndex0;
     const nonEmpty = row.filter((cell) => cell !== null && cell !== "").length;
-    const looksLikeSubmissionHeader =
-      !!isoAtIndex1 &&
-      nonEmpty <= 3 &&
-      (row[0] === null || typeof row[0] === "number" || row[0] === undefined);
+    const looksLikeSubmissionHeader = !!headerDate && nonEmpty <= 3;
 
     if (looksLikeSubmissionHeader) {
-      currentSubmissionDate = isoAtIndex1;
+      currentSubmissionDate = headerDate;
       return;
     }
 
@@ -231,16 +229,14 @@ export const fetchSheetData = async (
   let currentSubmissionDateForRecords: string | null = null;
 
   rawRows.slice(headerIndex + 1).forEach((row: (string | number | null)[]) => {
-    const isoAtIndex1 =
-      typeof row[1] === "string" ? toValidIso(row[1]) : null;
+    const isoAtIndex1 = typeof row[1] === "string" ? toValidIso(row[1]) : null;
+    const isoAtIndex0 = typeof row[0] === "string" ? toValidIso(row[0]) : null;
+    const headerDate = isoAtIndex1 ?? isoAtIndex0;
     const nonEmpty = row.filter((cell) => cell !== null && cell !== "").length;
-    const looksLikeSubmissionHeader =
-      !!isoAtIndex1 &&
-      nonEmpty <= 3 &&
-      (row[0] === null || typeof row[0] === "number" || row[0] === undefined);
+    const looksLikeSubmissionHeader = !!headerDate && nonEmpty <= 3;
 
     if (looksLikeSubmissionHeader) {
-      currentSubmissionDateForRecords = isoAtIndex1;
+      currentSubmissionDateForRecords = headerDate;
       return;
     }
 

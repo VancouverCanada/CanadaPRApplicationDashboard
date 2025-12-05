@@ -27,6 +27,7 @@ const COPY: Record<Language, Record<string, string>> = {
     allCombined: "All Combined",
     viewSources: "View Sources",
     updatedAt: "Updated at",
+    live: "Live",
     statsRecords: "Records",
     statsRecordsHint: "Visible entries after filters",
     statsProvinces: "Provinces",
@@ -40,6 +41,8 @@ const COPY: Record<Language, Record<string, string>> = {
     statsAorProgress: "AOR Progress",
     statsAorProgressHint:
       "Latest date seen in sheets (submission header / AOR header)",
+    statsEarliestSubmission: "Earliest Submission",
+    statsEarliestSubmissionHint: "Earliest submission date in current data",
     filtersTitle: "Filters & Search",
     searchPlaceholder: "Search name / province / stream",
     allProvinces: "All Provinces",
@@ -100,6 +103,7 @@ const COPY: Record<Language, Record<string, string>> = {
     allCombined: "全部合并",
     viewSources: "查看源表",
     updatedAt: "更新于",
+    live: "实时",
     statsRecords: "当前记录",
     statsRecordsHint: "过滤条件后的可见条目",
     statsProvinces: "覆盖省份",
@@ -112,6 +116,8 @@ const COPY: Record<Language, Record<string, string>> = {
     statsProcessingHint: "最近 30 天平均耗时预估 AOR 日期",
     statsAorProgress: "AOR 进度",
     statsAorProgressHint: "按表中出现的最新日期推断（提交日/AOR 头部日期）",
+    statsEarliestSubmission: "最早提交日期",
+    statsEarliestSubmissionHint: "当前数据中的最早提交日期",
     filtersTitle: "筛选与搜索",
     searchPlaceholder: "按姓名 / 省份 / 类别搜索",
     allProvinces: "全部省份",
@@ -445,21 +451,92 @@ const formatDays = (value: number | null, lang: Language) => {
   return `${rounded} ${lang === "en" ? "days" : "天"}`;
 };
 
+const formatCountWithUnit = (
+  value: number,
+  lang: Language,
+  unitEn: string,
+  unitZh: string,
+) => (lang === "en" ? `${value} ${unitEn}` : `${value} ${unitZh}`);
+
 const StatsCard = ({
   label,
   value,
+  subValue,
   hint,
+  variant = "default",
+  align = "left",
+  className = "",
 }: {
   label: string;
   value: string;
+  subValue?: string;
   hint?: string;
-}) => (
-  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg shadow-blue-500/5 backdrop-blur">
-    <div className="text-sm text-white/70">{label}</div>
-    <div className="mt-2 text-3xl font-semibold text-white">{value}</div>
-    {hint ? <div className="mt-1 text-xs text-white/60">{hint}</div> : null}
-  </div>
-);
+  variant?: "default" | "accent";
+  align?: "left" | "right";
+  className?: string;
+}) => {
+  const accent = variant === "accent";
+  const alignRight = align === "right";
+  return (
+    <div
+      className={`relative overflow-hidden rounded-2xl border p-4 shadow-lg backdrop-blur ${className} ${
+        accent
+          ? "border-teal-200/70 bg-gradient-to-br from-teal-500/20 via-cyan-400/10 to-blue-500/10 shadow-teal-500/30"
+          : "border-white/10 bg-white/5 shadow-blue-500/5"
+      }`}
+    >
+      {accent ? (
+        <div className="absolute inset-0 rounded-2xl border border-white/10 blur-[1px] opacity-40" />
+      ) : null}
+      {alignRight ? (
+        <div className="relative flex h-full flex-col">
+          <div className="flex items-center gap-2">
+            <div className={accent ? "text-sm font-semibold text-teal-100" : "text-sm text-white/70"}>
+              {label}
+            </div>
+            {accent ? (
+              <span className="rounded-full bg-white/15 px-2 py-[2px] text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
+                Key
+              </span>
+            ) : null}
+          </div>
+          <div className="flex flex-1 items-center justify-center">
+            <div className="flex flex-col items-center gap-1">
+              <div className="text-4xl font-semibold leading-tight text-white text-center">{value}</div>
+              {subValue ? (
+                <div className="text-sm font-medium text-white/80">{subValue}</div>
+              ) : null}
+            </div>
+          </div>
+          {hint ? (
+            <div className={`relative pb-1 text-xs ${accent ? "text-teal-50/80" : "text-white/60"}`}>
+              {hint}
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <>
+          <div className="relative flex items-center gap-2">
+            <div className={accent ? "text-sm font-semibold text-teal-100" : "text-sm text-white/70"}>
+              {label}
+            </div>
+            {accent ? (
+              <span className="rounded-full bg-white/20 px-2 py-[2px] text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
+                Key
+              </span>
+            ) : null}
+          </div>
+          <div className="relative mt-2 text-3xl font-semibold text-white">{value}</div>
+        </>
+      )}
+      {hint && !alignRight ? (
+        <div className={`relative mt-3 text-xs ${accent ? "text-teal-50/80" : "text-white/60"}`}>
+          {hint}
+        </div>
+      ) : null}
+    </div>
+  );
+};
 
 export default function Home() {
   const [records, setRecords] = useState<(ParsedRecord & { __source?: string })[]>(
@@ -574,6 +651,19 @@ export default function Home() {
     [filtered],
   );
   const timelineData = useMemo(() => aggregateTimeline(filtered), [filtered]);
+
+  const earliestSubmissionDate = useMemo(() => {
+    const dates = filtered
+      .map((record) => toValidDate(record.__submissionDate ?? record.firstDate))
+      .filter(Boolean) as Date[];
+    if (!dates.length) return null;
+    const min = dates.reduce(
+      (acc, date) => (date.getTime() < acc.getTime() ? date : acc),
+      dates[0],
+    );
+    return min.toISOString().slice(0, 10);
+  }, [filtered]);
+
   const pvoData = useMemo(() => {
     const counts: Record<string, number> = {};
     filtered.forEach((record) => {
@@ -738,6 +828,12 @@ export default function Home() {
 
   const avgProcessingDays30 = avgProcessingDays;
 
+  const aorEtaText = useMemo(() => {
+    if (avgProcessingDays === null || Number.isNaN(avgProcessingDays)) return undefined;
+    const daysText = formatDays(avgProcessingDays, lang);
+    return lang === "en" ? `ETA (30d avg) · ${daysText}` : `预估（30天均值）· ${daysText}`;
+  }, [avgProcessingDays, lang]);
+
   const adrCount = filtered.filter((record) => record.adr).length;
   const returnedCount = filtered.filter((record) => record.returned).length;
   const latestEvents = useMemo(() => {
@@ -829,57 +925,71 @@ export default function Home() {
               >
                 {t("viewSources")}
               </button>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
-                {lastUpdated
-                  ? `${t("updatedAt")} ${lastUpdated.toLocaleTimeString()}`
-                  : t("updatedAt")}
-              </span>
+              <div className="flex items-center gap-2 rounded-full border border-teal-200/40 bg-white/5 px-3 py-1 text-xs font-medium text-white/80 shadow-lg shadow-teal-400/20 animate-pulse">
+                <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400/60"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.25em] text-rose-100">
+                  {t("live")}
+                </span>
+                <span className="text-white/80">
+                  {lastUpdated
+                    ? `${t("updatedAt")} ${lastUpdated.toLocaleTimeString()}`
+                    : t("updatedAt")}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <StatsCard
-              label={t("statsRecords")}
-              value={
-                lang === "en"
-                  ? `${filtered.length}`
-                  : `${filtered.length} 条`
-              }
-              hint={t("statsRecordsHint")}
-            />
-            <StatsCard
-              label={t("statsProvinces")}
-              value={
-                lang === "en"
-                  ? `${provinces.length}`
-                  : `${provinces.length} 个`
-              }
-              hint={t("statsProvincesHint")}
-            />
-            <StatsCard
-              label={t("statsAdr")}
-              value={lang === "en" ? `${adrCount}` : `${adrCount} 份`}
-              hint={t("statsAdrHint")}
-            />
-            <StatsCard
-              label={t("statsReturned")}
-              value={lang === "en" ? `${returnedCount}` : `${returnedCount} 份`}
-              hint={t("statsReturnedHint")}
-            />
-            <StatsCard
-              label={t("statsProcessing")}
-              value={
-                avgProcessingDays !== null
-                  ? formatDays(avgProcessingDays, lang)
-                  : "-"
-              }
-              hint={t("statsProcessingHint")}
-            />
-            <StatsCard
-              label={t("statsAorProgress")}
-              value={latestAorDate ?? "-"}
-              hint={t("statsAorProgressHint")}
-            />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
+            <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <StatsCard
+                label={t("statsRecords")}
+                value={formatCountWithUnit(filtered.length, lang, "records", "条")}
+                hint={t("statsRecordsHint")}
+              />
+              <StatsCard
+                label={t("statsProvinces")}
+                value={formatCountWithUnit(provinces.length, lang, "provinces", "个")}
+                hint={t("statsProvincesHint")}
+              />
+              <StatsCard
+                label={t("statsAdr")}
+                value={formatCountWithUnit(adrCount, lang, "cases", "份")}
+                hint={t("statsAdrHint")}
+              />
+              <StatsCard
+                label={t("statsReturned")}
+                value={formatCountWithUnit(returnedCount, lang, "cases", "份")}
+                hint={t("statsReturnedHint")}
+              />
+              <StatsCard
+                label={t("statsProcessing")}
+                value={
+                  avgProcessingDays !== null
+                    ? formatDays(avgProcessingDays, lang)
+                    : "-"
+                }
+                hint={t("statsProcessingHint")}
+              />
+              <StatsCard
+                label={t("statsEarliestSubmission")}
+                value={earliestSubmissionDate ?? "-"}
+                hint={t("statsEarliestSubmissionHint")}
+              />
+            </div>
+            <div className="lg:w-64 xl:w-72">
+              <StatsCard
+                label={t("statsAorProgress")}
+                value={latestAorDate ?? "-"}
+                subValue={aorEtaText}
+                hint={t("statsAorProgressHint")}
+                variant="accent"
+                align="right"
+                className="h-full"
+              />
+            </div>
           </div>
         </header>
 
@@ -1463,7 +1573,7 @@ export default function Home() {
         </div>
 
         <footer className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-blue-500/10 backdrop-blur">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4">
             <div>
               <h4 className="text-lg font-semibold text-white">{t("aboutTitle")}</h4>
               <p className="text-sm text-white/70">{t("aboutBody")}</p>
@@ -1473,7 +1583,7 @@ export default function Home() {
                   : `当前设备访问次数：${visitCount}`}
               </p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center sm:gap-3">
               <a
                 href="https://github.com/VancouverCanada/CanadaPRApplicationDashboard"
                 target="_blank"
