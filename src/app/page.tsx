@@ -526,8 +526,8 @@ export default function Home() {
       { label: "PAL → FD", from: ["pal", "pre_arrival", "col_13"], to: ["fd", "final_decision", "final", "col_14"] },
       { label: "FD → P1", from: ["fd", "final_decision", "final", "col_14"], to: ["p1", "portal1", "col_15"] },
       { label: "P1 → P2", from: ["p1", "portal1", "col_15"], to: ["p2", "portal2", "col_16"] },
+      { label: "P2 → eCOPR", from: ["p2", "portal2", "col_16"], to: ["ecopr", "copr", "col_18"] },
       { label: "P2 → PPR", from: ["p2", "portal2", "col_16"], to: ["ppr", "passport_request", "rfv", "col_17"] },
-      { label: "PPR → eCOPR", from: ["ppr", "passport_request", "rfv", "col_17"], to: ["ecopr", "copr", "col_18"] },
     ];
 
     type Stat = { label: string; total: number; count: number };
