@@ -230,7 +230,7 @@ export const fetchSheetData = async (
   const records: ParsedRecord[] = [];
   let currentSubmissionDateForRecords: string | null = null;
 
-  rawRows.slice(headerIndex + 1).forEach((row) => {
+  rawRows.slice(headerIndex + 1).forEach((row: (string | number | null)[]) => {
     const isoAtIndex1 =
       typeof row[1] === "string" ? toValidIso(row[1]) : null;
     const nonEmpty = row.filter((cell) => cell !== null && cell !== "").length;
