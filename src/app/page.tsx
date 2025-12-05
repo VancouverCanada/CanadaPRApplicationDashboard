@@ -193,6 +193,8 @@ const toValidDate = (value: unknown): Date | null => {
   return parsed;
 };
 
+const MAX_TIMELINE_COUNT = 200;
+
 const normalizeRecords = (records: SheetRecord[]): NormalizedRecord[] => {
   const normalizeProvince = (value: string | undefined | null) => {
     if (!value) return "";
@@ -334,9 +336,12 @@ const aggregateTimeline = (records: NormalizedRecord[]) => {
     const key = parsed.toISOString().slice(0, 10);
     counts[key] = (counts[key] ?? 0) + 1;
   });
-  return Object.entries(counts)
+  const entries = Object.entries(counts)
     .map(([date, value]) => ({ date, value }))
     .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Drop obvious outliers to avoid misleading spikes from bad source rows
+  return entries.filter((item) => item.value <= MAX_TIMELINE_COUNT);
 };
 
 const formatDays = (value: number | null, lang: Language) => {
