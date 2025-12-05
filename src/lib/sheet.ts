@@ -159,7 +159,7 @@ export const fetchSheetData = async (
   const headers = headerRow.map(normalizeHeader);
 
   const aorColumnIndices: number[] = [];
-  headers.forEach((header, index) => {
+  headers.forEach((header: string, index: number) => {
     if (header.includes("aor")) {
       aorColumnIndices.push(index);
     }
