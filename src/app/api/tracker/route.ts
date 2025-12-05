@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
   const mergedRecords = results.flatMap((result) =>
     result.records.map((record) => ({
       ...record,
-      __source: result.source.label,
+      __source: result.source.labelEn || result.source.labelZh,
     })),
   );
 
@@ -74,4 +74,3 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(payload);
 }
-
