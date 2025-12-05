@@ -82,10 +82,14 @@ const COPY: Record<Language, Record<string, string>> = {
     aboutBody:
       "Canada PR Live Tracker is an open-source aggregated dashboard for PR applicants. It merges public Google Sheets (public documents), refreshes every 30 minutes with caching, parses AOR/BIL/ADR dates, filters outliers, maps submission groups, and computes durations. Metrics: AOR progress, 30d mean time, 3-month trend, province breakdown, timeline, and latest updates. Open-source on GitHub; data sources, parsing rules, and caching are transparent. Contributions via PR/Issue are welcome.",
     githubRepo: "GitHub Repo",
+    feedback: "Feedback & Suggestions",
+    feedbackCta: "Submit feedback / issue",
     phasesCardTitle: "Phase Duration (last {months} months)",
     pvoTitle: "PVO Distribution",
     svoTitle: "SVO Distribution",
     sampleLabel: "Samples",
+    formulaTitle: "Math & Formulas",
+    formulaSubtitle: "How key metrics are calculated",
   },
   zh: {
     tagline: "Canada PR Live Tracker",
@@ -147,10 +151,14 @@ const COPY: Record<Language, Record<string, string>> = {
     aboutBody:
       "Canada PR Live Tracker 是一个开源的聚合式数据看板，面向等待 PR 的申请人。核心能力：1）数据来源：公开 Google Sheet（网络公开文档），多数据源合并；2）数据处理：服务端定期拉取并缓存 30 分钟，解析 AOR/BIL/ADR 等日期字段，过滤异常值，支持提交分组映射与 AOR 时长计算；3）指标与可视化：AOR 进度、近 30 天处理均值、近 3 个月 AOR 平均耗时趋势，分省分布、时间轴、最新动态等；4）开源治理：源码在 GitHub，数据源名单公开，解析规则与缓存策略可审计。欢迎通过 PR/Issue 提供新的数据源、改进解析或优化体验。",
     githubRepo: "GitHub 仓库",
+    feedback: "反馈与建议",
+    feedbackCta: "提交反馈 / Issue",
     phasesCardTitle: "阶段耗时分析",
     pvoTitle: "PVO 分布",
     svoTitle: "SVO 分布",
     sampleLabel: "样本数",
+    formulaTitle: "数学公式",
+    formulaSubtitle: "核心指标的计算方式",
   },
 };
 
@@ -194,6 +202,38 @@ const toValidDate = (value: unknown): Date | null => {
 };
 
 const MAX_TIMELINE_COUNT = 200;
+const FORMULAS = [
+  {
+    key: "timeline",
+    en: "Timeline: count per date using earliest valid date per record (AOR/AR/medical etc.); drop dates with count > 200 as outliers.",
+    zh: "时间轴：每条记录取最早的有效日期（AOR/AR/体检等）计数；超过 200 的日期视为异常并过滤。",
+  },
+  {
+    key: "avg30",
+    en: "AOR ETA (30d avg): mean of (AOR - submission) for samples with AOR in the last 30 days; ETA = submission + mean days.",
+    zh: "AOR 预估（近 30 天均值）：统计近 30 天内有 AOR 的样本，平均 (AOR - 提交) 天数；预估日期 = 提交日期 + 均值。",
+  },
+  {
+    key: "trend",
+    en: "AOR trend (3 mo): bucket by AOR month within last 90 days; avg days from submission to AOR per month.",
+    zh: "AOR 趋势（近 3 个月）：按 AOR 发生月份分桶（近 90 天），计算提交到 AOR 的平均天数。",
+  },
+  {
+    key: "stages",
+    en: "Stage duration: for records that reached PAL in the window, average (to - from) per step (AOR→BIL→Medical→PAL→FD→P1→P2→eCOPR/PPR).",
+    zh: "阶段耗时：在时间窗内达到 PAL 的样本，按阶段计算 (到 - 起) 的平均天数（AOR→BIL→体检→PAL→FD→P1→P2→eCOPR/PPR）。",
+  },
+  {
+    key: "latest",
+    en: "Latest updates: sort records by latest valid date (pal/aor/bil/medical etc.) within last 30 days.",
+    zh: "最新动态：按最新的有效日期（PAL/AOR/BIL/体检等）排序，取近 30 天的记录。",
+  },
+  {
+    key: "distribution",
+    en: "PVO/SVO distribution: top 10 offices by count after cleaning invalid/blank values.",
+    zh: "PVO/SVO 分布：清洗无效/空值后，统计数量取前 10 个办公室。",
+  },
+];
 
 const normalizeRecords = (records: SheetRecord[]): NormalizedRecord[] => {
   const normalizeProvince = (value: string | undefined | null) => {
@@ -1345,6 +1385,22 @@ export default function Home() {
           </div>
         )}
 
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-blue-500/10 backdrop-blur">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h5 className="text-sm font-semibold text-white">{t("formulaTitle")}</h5>
+              <p className="text-xs text-white/60">{t("formulaSubtitle")}</p>
+            </div>
+          </div>
+          <ul className="mt-2 space-y-2 text-xs text-white/70">
+            {FORMULAS.map((item) => (
+              <li key={item.key} className="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
+                {lang === "en" ? item.en : item.zh}
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <footer className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-blue-500/10 backdrop-blur">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -1356,26 +1412,37 @@ export default function Home() {
                   : `当前设备访问次数：${visitCount}`}
               </p>
             </div>
-            <a
-              href="https://github.com/VancouverCanada/CanadaPRApplicationDashboard"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-medium text-white transition hover:border-teal-200/60 hover:bg-white/20"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-5 w-5"
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <a
+                href="https://github.com/VancouverCanada/CanadaPRApplicationDashboard"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-medium text-white transition hover:border-teal-200/60 hover:bg-white/20"
               >
-                <path
-                  fillRule="evenodd"
-                  d="M12 2C6.477 2 2 6.486 2 12.02c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.238-.009-.868-.013-1.703-2.782.605-3.37-1.342-3.37-1.342-.454-1.156-1.11-1.465-1.11-1.465-.908-.62.069-.608.069-.608 1.003.071 1.531 1.032 1.531 1.032.892 1.532 2.341 1.09 2.91.833.091-.648.35-1.09.636-1.341-2.221-.253-4.556-1.114-4.556-4.957 0-1.095.39-1.99 1.03-2.69-.104-.253-.447-1.272.098-2.65 0 0 .84-.27 2.75 1.028A9.564 9.564 0 0 1 12 6.8c.85.004 1.705.115 2.503.337 1.909-1.298 2.748-1.028 2.748-1.028.546 1.378.203 2.397.1 2.65.64.7 1.028 1.595 1.028 2.69 0 3.853-2.339 4.701-4.566 4.95.36.31.681.92.681 1.855 0 1.339-.012 2.42-.012 2.75 0 .268.18.579.688.48A10.022 10.022 0 0 0 22 12.02C22 6.486 17.523 2 12 2Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              {t("githubRepo")}
-            </a>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="h-6 w-6"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M12 2C6.477 2 2 6.486 2 12.02c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.238-.009-.868-.013-1.703-2.782.605-3.37-1.342-3.37-1.342-.454-1.156-1.11-1.465-1.11-1.465-.908-.62.069-.608.069-.608 1.003.071 1.531 1.032 1.531 1.032.892 1.532 2.341 1.09 2.91.833.091-.648.35-1.09.636-1.341-2.221-.253-4.556-1.114-4.556-4.957 0-1.095.39-1.99 1.03-2.69-.104-.253-.447-1.272.098-2.65 0 0 .84-.27 2.75 1.028A9.564 9.564 0 0 1 12 6.8c.85.004 1.705.115 2.503.337 1.909-1.298 2.748-1.028 2.748-1.028.546 1.378.203 2.397.1 2.65.64.7 1.028 1.595 1.028 2.69 0 3.853-2.339 4.701-4.566 4.95.36.31.681.92.681 1.855 0 1.339-.012 2.42-.012 2.75 0 .268.18.579.688.48A10.022 10.022 0 0 0 22 12.02C22 6.486 17.523 2 12 2Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                {t("githubRepo")}
+              </a>
+              <a
+                href="https://github.com/VancouverCanada/CanadaPRApplicationDashboard/issues"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-teal-200/40 bg-teal-400/10 px-5 py-3 text-sm font-medium text-teal-100 transition hover:border-teal-200/70 hover:bg-teal-400/20"
+              >
+                <span className="inline-block h-3 w-3 rounded-full bg-teal-300" />
+                {lang === "en" ? t("feedback") : t("feedback")}
+              </a>
+            </div>
           </div>
         </footer>
       </div>
