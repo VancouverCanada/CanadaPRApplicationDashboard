@@ -220,7 +220,9 @@ export const fetchSheetData = async (
   const latestDateAllCells =
     rawRows
       .flat()
-      .map((value) => toValidIso(typeof value === "string" ? value : null))
+      .map((value: string | number | null) =>
+        toValidIso(typeof value === "string" ? value : null),
+      )
       .filter((value): value is string => Boolean(value))
       .sort()
       .pop() ?? null;
