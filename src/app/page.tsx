@@ -33,6 +33,8 @@ const COPY: Record<Language, Record<string, string>> = {
     statsProvincesHint: "Unique provinces detected",
     statsAdr: "ADR / Returns",
     statsAdrHint: "Contains ADR or Return fields",
+    statsReturned: "Returned",
+    statsReturnedHint: 'ADR field explicitly contains "RETURNED"',
     statsProcessing: "AOR ETA (30d avg)",
     statsProcessingHint: "Estimated AOR date using 30-day average",
     statsAorProgress: "AOR Progress",
@@ -104,6 +106,8 @@ const COPY: Record<Language, Record<string, string>> = {
     statsProvincesHint: "基于省份字段聚合",
     statsAdr: "有 ADR/补料",
     statsAdrHint: "包含 ADR 或 Return 字段",
+    statsReturned: "Return 数",
+    statsReturnedHint: "ADR 字段明确包含 \"RETURNED\"",
     statsProcessing: "AOR 处理时间预估",
     statsProcessingHint: "最近 30 天平均耗时预估 AOR 日期",
     statsAorProgress: "AOR 进度",
@@ -179,6 +183,7 @@ type NormalizedRecord = {
   firstDate: string | null;
   latestDate: string | null;
   adr: string;
+  returned: boolean;
   pvo: string;
   svo: string;
   source?: string;
@@ -383,6 +388,9 @@ const normalizeRecords = (records: SheetRecord[]): NormalizedRecord[] => {
 
     const firstDate = findDate(record, "first");
     const latestDate = findDate(record, "last");
+    const returnedFlag = Boolean(
+      adrEntry && adrEntry.toLowerCase().includes("returned"),
+    );
 
     return {
       name: name.trim(),
@@ -391,6 +399,7 @@ const normalizeRecords = (records: SheetRecord[]): NormalizedRecord[] => {
       firstDate,
       latestDate,
       adr: adrEntry?.toString().trim() ?? "",
+      returned: returnedFlag,
       pvo: pvoEntry?.toString().trim() ?? "",
       svo: svoEntry?.toString().trim() ?? "",
       source: (record as SheetRecord & { __source?: string }).__source,
@@ -730,6 +739,7 @@ export default function Home() {
   const avgProcessingDays30 = avgProcessingDays;
 
   const adrCount = filtered.filter((record) => record.adr).length;
+  const returnedCount = filtered.filter((record) => record.returned).length;
   const latestEvents = useMemo(() => {
     const now = new Date();
     const days30Ago = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -827,7 +837,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <StatsCard
               label={t("statsRecords")}
               value={
@@ -850,6 +860,11 @@ export default function Home() {
               label={t("statsAdr")}
               value={lang === "en" ? `${adrCount}` : `${adrCount} 份`}
               hint={t("statsAdrHint")}
+            />
+            <StatsCard
+              label={t("statsReturned")}
+              value={lang === "en" ? `${returnedCount}` : `${returnedCount} 份`}
+              hint={t("statsReturnedHint")}
             />
             <StatsCard
               label={t("statsProcessing")}
