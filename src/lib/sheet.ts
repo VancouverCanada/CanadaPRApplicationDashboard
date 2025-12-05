@@ -173,7 +173,7 @@ export const fetchSheetData = async (
   const submissionDateToMaxAor: Record<string, string> = {};
   let globalMaxAor: string | null = null;
 
-  rawRows.forEach((row) => {
+  rawRows.forEach((row: (string | number | null)[]) => {
     const isoAtIndex1 =
       typeof row[1] === "string" ? toValidIso(row[1]) : null;
     const nonEmpty = row.filter((cell) => cell !== null && cell !== "").length;
