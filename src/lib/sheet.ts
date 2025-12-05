@@ -223,7 +223,7 @@ export const fetchSheetData = async (
       .map((value: string | number | null) =>
         toValidIso(typeof value === "string" ? value : null),
       )
-      .filter((value): value is string => Boolean(value))
+      .filter((value: string | null): value is string => Boolean(value))
       .sort()
       .pop() ?? null;
 
