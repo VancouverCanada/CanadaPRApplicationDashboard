@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Area,
   AreaChart,
@@ -38,11 +38,25 @@ const COPY: Record<Language, Record<string, string>> = {
     statsReturnedHint: 'ADR field explicitly contains "RETURNED"',
     statsProcessing: "AOR ETA (30d avg)",
     statsProcessingHint: "Estimated AOR date using 30-day average",
+    statsPrevBusinessAdvance: "Prev Business Advance",
+    statsPrevBusinessAdvanceHint:
+      "Change vs last business day (weekends/holidays skipped)",
+    statsSpeed: "AOR Speed (7d / 30d)",
+    statsSpeedHint: "Average advance per business day; skips weekends/holidays.",
     statsAorProgress: "AOR Progress",
     statsAorProgressHint:
       "Latest date seen in sheets (submission header / AOR header)",
     statsEarliestSubmission: "Earliest Submission",
     statsEarliestSubmissionHint: "Earliest submission date in current data",
+    lastBusinessDay: "Last business day",
+    latestAorDateLabel: "Latest AOR date",
+    baselineDay: "Baseline workday",
+    prevNoAdvance: "No advance last business day",
+    prevNoData: "No data for last business day",
+    speed7dLabel: "7d",
+    speed30dLabel: "30d",
+    speedNoData: "Not enough data",
+    speedUnit: "d/biz day",
     filtersTitle: "Filters & Search",
     searchPlaceholder: "Search name / province / stream",
     allProvinces: "All Provinces",
@@ -114,10 +128,23 @@ const COPY: Record<Language, Record<string, string>> = {
     statsReturnedHint: "ADR 字段明确包含 \"RETURNED\"",
     statsProcessing: "AOR 处理时间预估",
     statsProcessingHint: "最近 30 天平均耗时预估 AOR 日期",
+    statsPrevBusinessAdvance: "上一工作日推进",
+    statsPrevBusinessAdvanceHint: "对比上一工作日（跳过周末/节假日）",
+    statsSpeed: "7/30 天推进速度",
+    statsSpeedHint: "按工作日平均推进（排除周末与节假日）",
     statsAorProgress: "AOR 进度",
     statsAorProgressHint: "按表中出现的最新日期推断（提交日/AOR 头部日期）",
     statsEarliestSubmission: "最早提交日期",
     statsEarliestSubmissionHint: "当前数据中的最早提交日期",
+    lastBusinessDay: "上一工作日",
+    latestAorDateLabel: "最新 AOR 日期",
+    baselineDay: "对比工作日",
+    prevNoAdvance: "上一日未推进",
+    prevNoData: "缺少上一工作日数据",
+    speed7dLabel: "近7天",
+    speed30dLabel: "近30天",
+    speedNoData: "数据不足",
+    speedUnit: "天/工作日",
     filtersTitle: "筛选与搜索",
     searchPlaceholder: "按姓名 / 省份 / 类别搜索",
     allProvinces: "全部省份",
@@ -213,6 +240,89 @@ const toValidDate = (value: unknown): Date | null => {
 };
 
 const MAX_TIMELINE_COUNT = 200;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const HOLIDAYS_CA = new Set([
+  "2024-01-01", // New Year's Day
+  "2024-03-29", // Good Friday
+  "2024-05-20", // Victoria Day
+  "2024-07-01", // Canada Day
+  "2024-09-02", // Labour Day
+  "2024-10-14", // Thanksgiving
+  "2024-11-11", // Remembrance Day
+  "2024-12-25", // Christmas
+  "2024-12-26", // Boxing Day
+  "2025-01-01",
+  "2025-04-18", // Good Friday
+  "2025-05-19", // Victoria Day
+  "2025-07-01", // Canada Day
+  "2025-09-01", // Labour Day
+  "2025-10-13", // Thanksgiving
+  "2025-11-11", // Remembrance Day
+  "2025-12-25",
+  "2025-12-26",
+]);
+
+const toLocalDayString = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const parseLocalDayString = (value: string): Date | null => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+  const [y, m, d] = value.split("-").map(Number);
+  const parsed = new Date(y, m - 1, d);
+  if (
+    parsed.getFullYear() !== y ||
+    parsed.getMonth() !== m - 1 ||
+    parsed.getDate() !== d
+  ) {
+    return null;
+  }
+  return parsed;
+};
+
+const isWeekend = (date: Date) => {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+};
+
+const isHoliday = (date: Date) => HOLIDAYS_CA.has(toLocalDayString(date));
+
+const isBusinessDay = (date: Date) => !isWeekend(date) && !isHoliday(date);
+
+const toBusinessDayOrPrevious = (date: Date) => {
+  const cursor = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  while (!isBusinessDay(cursor)) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return cursor;
+};
+
+const previousBusinessDay = (date: Date) => {
+  const prev = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  prev.setDate(prev.getDate() - 1);
+  return toBusinessDayOrPrevious(prev);
+};
+
+const businessDaysBetween = (start: Date, end: Date) => {
+  const from = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const to = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  if (to <= from) return 0;
+  let count = 0;
+  const cursor = new Date(from);
+  while (cursor < to) {
+    cursor.setDate(cursor.getDate() + 1);
+    if (isBusinessDay(cursor) && cursor <= to) count += 1;
+  }
+  return count;
+};
+
+const diffInDays = (from: Date, to: Date) =>
+  Math.max(0, Math.round((to.getTime() - from.getTime()) / DAY_MS));
 const FORMULAS = [
   {
     key: "timeline",
@@ -445,6 +555,15 @@ const aggregateTimeline = (records: NormalizedRecord[]) => {
   return entries.filter((item) => item.value <= MAX_TIMELINE_COUNT);
 };
 
+const extractAorDate = (record: NormalizedRecord): Date | null => {
+  const raw = record.raw as SheetRecord;
+  return (
+    toValidDate(raw.aor as string) ||
+    toValidDate(raw.col_5 as string) ||
+    null
+  );
+};
+
 const formatDays = (value: number | null, lang: Language) => {
   if (value === null || Number.isNaN(value)) return "-";
   const rounded = Math.round(value);
@@ -462,14 +581,16 @@ const StatsCard = ({
   label,
   value,
   subValue,
+  valueNode,
   hint,
   variant = "default",
   align = "left",
   className = "",
 }: {
   label: string;
-  value: string;
+  value?: string | number | null;
   subValue?: string;
+  valueNode?: ReactNode;
   hint?: string;
   variant?: "default" | "accent";
   align?: "left" | "right";
@@ -477,6 +598,7 @@ const StatsCard = ({
 }) => {
   const accent = variant === "accent";
   const alignRight = align === "right";
+  const displayValue = valueNode ?? value;
   return (
     <div
       className={`relative overflow-hidden rounded-2xl border p-4 shadow-lg backdrop-blur ${className} ${
@@ -502,7 +624,9 @@ const StatsCard = ({
           </div>
           <div className="flex flex-1 items-center justify-center">
             <div className="flex flex-col items-center gap-1">
-              <div className="text-4xl font-semibold leading-tight text-white text-center">{value}</div>
+              <div className="text-4xl font-semibold leading-tight text-white text-center">
+                {displayValue}
+              </div>
               {subValue ? (
                 <div className="text-sm font-medium text-white/80">{subValue}</div>
               ) : null}
@@ -526,7 +650,9 @@ const StatsCard = ({
               </span>
             ) : null}
           </div>
-          <div className="relative mt-2 text-3xl font-semibold text-white">{value}</div>
+          <div className="relative mt-2 text-3xl font-semibold text-white">
+            {displayValue}
+          </div>
         </>
       )}
       {hint && !alignRight ? (
@@ -537,6 +663,24 @@ const StatsCard = ({
     </div>
   );
 };
+
+const SpeedRow = ({
+  label,
+  primary,
+  secondary,
+}: {
+  label: string;
+  primary: string;
+  secondary?: string;
+}) => (
+  <div className="flex items-baseline justify-between rounded-xl bg-white/5 px-3 py-2">
+    <div className="text-sm text-white/70">{label}</div>
+    <div className="text-right">
+      <div className="text-lg font-semibold text-white">{primary}</div>
+      {secondary ? <div className="text-xs text-white/60">{secondary}</div> : null}
+    </div>
+  </div>
+);
 
 export default function Home() {
   const [records, setRecords] = useState<(ParsedRecord & { __source?: string })[]>(
@@ -556,6 +700,13 @@ export default function Home() {
   const [lang, setLang] = useState<Language>("en");
   const t = useMemo(() => getTranslation(lang), [lang]);
   const [visitCount, setVisitCount] = useState<number>(0);
+
+  type SpeedMetric = {
+    gain: number;
+    speed: number | null;
+    bizDays: number;
+    anchorDay: string;
+  };
 
   useEffect(() => {
     // 简单访问计数（本地浏览器持久化），仅在客户端执行一次
@@ -663,6 +814,106 @@ export default function Home() {
     );
     return min.toISOString().slice(0, 10);
   }, [filtered]);
+
+  const aorFrontierByDay = useMemo(() => {
+    const map: Record<string, string> = {};
+    filtered.forEach((record) => {
+      const submission =
+        toValidDate(record.__submissionDate) ?? toValidDate(record.firstDate);
+      const aor = extractAorDate(record);
+      if (!submission || !aor) return;
+      const aorKey = aor.toISOString().slice(0, 10);
+      const submissionKey = submission.toISOString().slice(0, 10);
+      if (!map[aorKey] || map[aorKey] < submissionKey) {
+        map[aorKey] = submissionKey;
+      }
+    });
+    return Object.entries(map)
+      .map(([aorDay, submissionDay]) => ({ aorDay, submissionDay }))
+      .sort((a, b) => a.aorDay.localeCompare(b.aorDay));
+  }, [filtered]);
+
+  const progressMetrics = useMemo(() => {
+    if (!aorFrontierByDay.length) {
+      return {
+        prevValue: t("prevNoData"),
+        prevHint: t("prevNoData"),
+        speed7: null,
+        speed30: null,
+      };
+    }
+
+    const latestEntry = aorFrontierByDay[aorFrontierByDay.length - 1];
+    const latestAorDayString = latestEntry.aorDay;
+    const latestAorDay = parseLocalDayString(latestAorDayString) ?? new Date();
+    const latestSubmissionDay =
+      parseLocalDayString(latestEntry.submissionDay) ?? latestAorDay;
+
+    const prevBizDay = previousBusinessDay(latestAorDay);
+    const prevBizKey = toLocalDayString(prevBizDay);
+
+    const aorDaysSorted = aorFrontierByDay.map((item) => item.aorDay);
+    const prevAorDayString =
+      [...aorDaysSorted].reverse().find((day) => day <= prevBizKey) ??
+      latestAorDayString;
+    const prevAorDay =
+      parseLocalDayString(prevAorDayString) ?? parseLocalDayString(latestAorDayString) ?? new Date();
+
+    const prevDelta = diffInDays(prevAorDay, latestAorDay);
+    const prevValue =
+      prevDelta > 0
+        ? `+${prevDelta} ${lang === "en" ? "days" : "天"}`
+        : t("prevNoAdvance");
+    const prevHint = `${t("latestAorDateLabel")}: ${latestAorDayString} · ${t("baselineDay")}: ${prevBizKey}`;
+
+    const computeWindow = (windowDays: number): SpeedMetric | null => {
+      const boundary = new Date(latestAorDay);
+      boundary.setDate(boundary.getDate() - windowDays);
+      const boundaryKey = toLocalDayString(boundary);
+      const anchor =
+        aorFrontierByDay.find((entry) => entry.aorDay >= boundaryKey) ??
+        aorFrontierByDay[0];
+      const anchorAorDay =
+        parseLocalDayString(anchor.aorDay) ?? toBusinessDayOrPrevious(new Date());
+      const anchorSubmissionDay =
+        parseLocalDayString(anchor.submissionDay) ?? anchorAorDay;
+
+      const gain = diffInDays(anchorSubmissionDay, latestSubmissionDay);
+      const bizDaysRaw = businessDaysBetween(
+        toBusinessDayOrPrevious(anchorAorDay),
+        toBusinessDayOrPrevious(latestAorDay),
+      );
+      const bizDays = Math.max(1, bizDaysRaw);
+      const speed = gain > 0 ? gain / bizDays : 0;
+      return { gain, speed, bizDays, anchorDay: anchor.aorDay };
+    };
+
+    return {
+      prevValue,
+      prevHint,
+      speed7: computeWindow(7),
+      speed30: computeWindow(30),
+    };
+  }, [aorFrontierByDay, lang, t]);
+
+  const formatSpeedPrimary = (metric: SpeedMetric | null) => {
+    if (!metric || metric.speed === null) return t("speedNoData");
+    const valueText = metric.speed.toFixed(2);
+    if (lang === "zh") return `推进 ${valueText} 天/工作日`;
+    const unit = t("speedUnit");
+    return `Avg +${valueText} ${unit}`;
+  };
+
+  const formatSpeedSecondary = (metric: SpeedMetric | null) => {
+    if (!metric) return "";
+    if (metric.gain <= 0) return t("prevNoAdvance");
+    const daysText = lang === "en" ? "days" : "天";
+    const bizLabel =
+      lang === "en"
+        ? `${metric.bizDays} workdays`
+        : `${metric.bizDays} 个工作日`;
+    return `+${metric.gain} ${daysText} · ${bizLabel}`;
+  };
 
   const pvoData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -831,7 +1082,9 @@ export default function Home() {
   const aorEtaText = useMemo(() => {
     if (avgProcessingDays === null || Number.isNaN(avgProcessingDays)) return undefined;
     const daysText = formatDays(avgProcessingDays, lang);
-    return lang === "en" ? `ETA (30d avg) · ${daysText}` : `预估（30天均值）· ${daysText}`;
+    return lang === "en"
+      ? `ETA (30d avg) · ${daysText}`
+      : `预估自申请到 AOR 大约需要（30天均值）· ${daysText}`;
   }, [avgProcessingDays, lang]);
 
   const adrCount = filtered.filter((record) => record.adr).length;
@@ -972,6 +1225,29 @@ export default function Home() {
                     : "-"
                 }
                 hint={t("statsProcessingHint")}
+              />
+              <StatsCard
+                label={t("statsPrevBusinessAdvance")}
+                value={progressMetrics.prevValue}
+                hint={progressMetrics.prevHint}
+              />
+              <StatsCard
+                label={t("statsSpeed")}
+                valueNode={
+                  <div className="flex flex-col gap-2">
+                    <SpeedRow
+                      label={t("speed7dLabel")}
+                      primary={formatSpeedPrimary(progressMetrics.speed7)}
+                      secondary={formatSpeedSecondary(progressMetrics.speed7)}
+                    />
+                    <SpeedRow
+                      label={t("speed30dLabel")}
+                      primary={formatSpeedPrimary(progressMetrics.speed30)}
+                      secondary={formatSpeedSecondary(progressMetrics.speed30)}
+                    />
+                  </div>
+                }
+                hint={t("statsSpeedHint")}
               />
               <StatsCard
                 label={t("statsEarliestSubmission")}
